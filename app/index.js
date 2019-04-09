@@ -5,6 +5,7 @@ const { spawn } = require('child_process')
 const appMenu = require('./menu')
 const config = require('./config')
 const pkg = require('./package')
+const os = require('os')
 
 require('electron-debug')()
 require('electron-context-menu')()
@@ -16,6 +17,7 @@ const isDev = typeof process.env.NODE_ENV === 'string'
 let mainWindow
 let isQuitting = false
 let cmd
+let isShell = Object.is('win32',os.platform())
 
 // Set title of the app that will use shown in window titlebar
 app.setName(pkg.productName)
@@ -53,11 +55,13 @@ function createMainWindow() {
 
   const RE = /Ready on http:\/\/localhost:(\d+)/
 
-  cmd = spawn('vue', ['ui', '--headless'], {
-    env: Object.assign({}, process.env, {
-      PATH: require('shell-path').sync()
-    })
+  cmd = spawn('vue', ['ui','--headless'],{
+	  shell:isShell,
+	  env:Object.assign({}, process.env, {
+		  PATH: require('shell-path').sync()
+		  })
   })
+  
   cmd.stdout.on('data', chunk => {
     const str = chunk.toString()
     if (RE.test(str)) {
@@ -65,6 +69,10 @@ function createMainWindow() {
       win.loadURL(`http://localhost:${port}/project/select`)
       win.show()
     }
+  })
+  
+  cmd.on('error',err=>{
+	  console.log('Failed to start child process 1.%s',err);
   })
 
   win.on('close', e => {
